@@ -97,19 +97,6 @@ The settings window is organised into four tabs, one concern each:
 
 ---
 
-## Building from source
-
-Prerequisites: a .NET SDK (the Dalamud SDK resolves the local runtime
-automatically) and [XIVLauncher](https://goatcorp.github.io/) with Dalamud
-(ran once).
-
-```
-dotnet build Tomestone.Translate.slnx -c Debug
-powershell -ExecutionPolicy Bypass -File scripts\copy-to-dev.ps1
-```
-
-Then `/xlplugins` → *Dev Tools* → *Installed Dev Plugins* → enable.
-
 ## License
 
 [GNU AGPL-3.0-or-later](https://github.com/porys/TomestoneTranslate)
