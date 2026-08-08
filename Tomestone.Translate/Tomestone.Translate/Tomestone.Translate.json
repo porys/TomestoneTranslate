@@ -1,0 +1,15 @@
+{
+  "Author": "Tomestone",
+  "Name": "Tomestone Translate",
+  "Punchline": "Live AI translation of cutscene and NPC dialogue, overlaid on the original text.",
+  "Description": "Translates in-game cutscene and NPC dialogue in real time using a user-defined AI translation endpoint (OpenAI-compatible, e.g. OpenAI, DeepSeek, Ollama, LM Studio, OpenRouter). The translation is drawn as an overlay on top of or above the original text.\n\nCommands:\n/tt - open the main window\n/ttconfig - open the settings window",
+  "ApplicableVersion": "any",
+  "Tags": [
+    "translate",
+    "translation",
+    "dialogue",
+    "cutscene",
+    "AI",
+    "LLM"
+  ]
+}

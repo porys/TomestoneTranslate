@@ -1,0 +1,32 @@
+[
+  {
+    "Author": "Tomestone",
+    "Name": "Tomestone Translate",
+    "InternalName": "Tomestone.Translate",
+    "AssemblyVersion": "0.0.0.1",
+    "Description": "Translates in-game cutscene and NPC dialogue in real time using a user-defined AI translation endpoint (OpenAI-compatible, e.g. OpenAI, DeepSeek, Ollama, LM Studio, OpenRouter). The translation is drawn as an overlay on top of or above the original text.\n\nCommands:\n/tt - open the main window\n/ttconfig - open the settings window",
+    "ApplicableVersion": "any",
+    "Tags": [
+      "translate",
+      "translation",
+      "dialogue",
+      "cutscene",
+      "AI",
+      "LLM"
+    ],
+    "DalamudApiLevel": 15,
+    "LoadRequiredState": 0,
+    "LoadSync": false,
+    "CanUnloadAsync": false,
+    "LoadPriority": 0,
+    "Punchline": "Live AI translation of cutscene and NPC dialogue, overlaid on the original text.",
+    "AcceptsFeedback": true,
+    "IconUrl": "https://raw.githubusercontent.com/porys/xivplugins/main/icon.png",
+    "DownloadLinkInstall": "https://github.com/porys/TomestoneTranslate/releases/latest/download/Tomestone.Translate.zip",
+    "DownloadLinkTesting": "",
+    "DownloadLinkUpdate": "https://github.com/porys/TomestoneTranslate/releases/latest/download/Tomestone.Translate.zip",
+    "LastUpdate": "2026-08-08T00:00:00",
+    "RepoUrl": "https://github.com/porys/TomestoneTranslate",
+    "IsHide": false
+  }
+]

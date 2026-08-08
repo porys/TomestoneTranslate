@@ -1,0 +1,37 @@
+name: release
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: "10.x"
+
+      - name: Download Dalamud
+        run: |
+          Invoke-WebRequest -Uri https://goatcorp.github.io/dalamud-distrib/latest.zip -OutFile latest.zip
+          Expand-Archive -Force latest.zip "$env:AppData\XIVLauncher\addon\Hooks\dev"
+
+      - name: Build Release
+        shell: bash
+        run: |
+          ver="${GITHUB_REF_NAME#v}"
+          dotnet build "Tomestone.Translate\Tomestone.Translate\Tomestone.Translate.csproj" -c Release -p:Version="$ver" --nologo
+
+      - name: Stage package
+        run: |
+          Copy-Item "Tomestone.Translate\Tomestone.Translate\bin\Release\Tomestone.Translate\latest.zip" -Destination ".\Tomestone.Translate.zip" -Force
+
+      - name: Create Release
+        run: |
+          gh release create "${{ github.ref_name }}" --latest --title "v${{ github.ref_name }}" --notes "Release v${{ github.ref_name }}"
+          gh release upload "${{ github.ref_name }}" "Tomestone.Translate.zip" --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}

@@ -1,0 +1,9 @@
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+  <PropertyGroup>
+    <Version>0.0.0.1</Version>
+    <PackageProjectUrl>https://github.com/porys/TomestoneTranslate</PackageProjectUrl>
+    <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
+    <IsPackable>false</IsPackable>
+    <Description>Live translation of cutscene and NPC dialogue using a user-defined AI translation endpoint, rendered as an in-place overlay.</Description>
+  </PropertyGroup>
+</Project>

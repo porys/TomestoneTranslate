@@ -1,0 +1,327 @@
+using Dalamud.Bindings.ImGui;
+using Dalamud.Interface.ManagedFontAtlas;
+using FFXIVClientStructs.FFXIV.Client.UI;
+using FFXIVClientStructs.FFXIV.Component.GUI;
+using System;
+using System.Numerics;
+using System.Threading;
+using Tomestone.Translate.Capture;
+using Tomestone.Translate.Debugging;
+
+namespace Tomestone.Translate.Overlay;
+
+/// <summary>
+///     Draws the translated dialogue text over/above the original text using
+///     the game's own node screen coordinates (AtkResNode.ScreenX/ScreenY).
+///     Works across every dialogue surface (Talk, TalkSubtitle, _BattleTalk,
+///     _MiniTalk) by drawing on whichever addon is currently visible.
+/// </summary>
+public sealed class OverlayDrawer
+{
+    private readonly Configuration configuration;
+    private readonly TalkCaptureService talkCapture;
+    private readonly Diagnostics diagnostics;
+    private readonly IFontHandle overlayFont;
+    private readonly TextNodeBuffer textNodeBuffer = new();
+
+    public OverlayDrawer(Configuration configuration, TalkCaptureService talkCapture, Diagnostics diagnostics, IFontHandle overlayFont)
+    {
+        this.configuration = configuration;
+        this.talkCapture = talkCapture;
+        this.diagnostics = diagnostics;
+        this.overlayFont = overlayFont;
+    }
+
+    public unsafe void Draw()
+    {
+        Interlocked.Increment(ref diagnostics.OverlayDraws);
+
+        if (!Plugin.IsTranslationActive(configuration))
+        {
+            diagnostics.OverlayLastSkipReason = "Translation disabled (/tt off or inside instance)";
+            return;
+        }
+
+        // Walk surfaces in priority order, poll the first visible + enabled one
+        // (so its changing text is captured), then draw the resulting line on it.
+        var surfaces = new[]
+        {
+            DialogueSurfaceKind.Talk,
+            DialogueSurfaceKind.BattleTalk,
+            DialogueSurfaceKind.TalkSubtitle,
+            DialogueSurfaceKind.MiniTalk,
+        };
+
+        DialogueSurfaceKind? activeSurface = null;
+        AtkUnitBase* activeAddon = null;
+        foreach (var surface in surfaces)
+        {
+            if (!TalkCaptureService.IsSurfaceEnabled(configuration, surface))
+            {
+                continue;
+            }
+
+            if (surface == DialogueSurfaceKind.MiniTalk)
+            {
+                if (talkCapture.GetVisibleMiniTalks().Count == 0)
+                {
+                    continue;
+                }
+
+                activeSurface = surface;
+                activeAddon = (AtkUnitBase*)talkCapture.GetVisibleMiniTalks()[0];
+            }
+            else if (!talkCapture.TryGetAddon(surface, out var addon))
+            {
+                continue;
+            }
+            else
+            {
+                activeSurface = surface;
+                activeAddon = addon;
+            }
+
+            break;
+        }
+
+        if (activeSurface == null || activeAddon == null)
+        {
+            diagnostics.AddonFound = false;
+            diagnostics.AddonVisible = false;
+            diagnostics.OverlayLastSkipReason = "No dialogue addon present/visible";
+            return;
+        }
+
+        diagnostics.AddonFound = true;
+        diagnostics.AddonVisible = activeAddon->IsVisible;
+
+        if (activeSurface == DialogueSurfaceKind.MiniTalk)
+        {
+            DrawMiniTalkOverlays(activeAddon);
+            return;
+        }
+
+        talkCapture.PollActiveSurface(activeAddon, activeSurface.Value);
+
+        if (!talkCapture.OverlayState.TryGetLine(out _, out var originalText, out var translated, out var translatedName, out var status, out var isPending))
+        {
+            diagnostics.OverlayLastSkipReason = "No line captured yet";
+            return;
+        }
+
+        var textNode = talkCapture.GetTextNodeForLine(activeSurface.Value, activeAddon, originalText);
+            diagnostics.TextNodeFound = textNode != null;
+            diagnostics.OverlaySurface = DialogueSurface.GetDisplayName(activeSurface.Value);
+
+        if (textNode == null)
+        {
+            diagnostics.OverlayLastSkipReason = "No rendered text node matches the captured line";
+            return;
+        }
+
+        diagnostics.NodeX = textNode->ScreenX;
+        diagnostics.NodeY = textNode->ScreenY;
+        diagnostics.NodeW = textNode->Width;
+        diagnostics.NodeH = textNode->Height;
+
+        // In-place replacement: show the original text until the translation is
+        // ready, then overwrite the node. Falls back to the box overlay when the
+        // surface can't be replaced or the translation is still pending/failed.
+        if (configuration.OverlayReplaceOriginalText && DialogueSurface.SupportsTextReplacement(activeSurface.Value))
+        {
+            if (translated == null)
+            {
+                // Leave the original text in the node; no placeholder replacement.
+                diagnostics.OverlayLastSkipReason = "Replacement pending translation";
+                return;
+            }
+
+            if (string.IsNullOrEmpty(translated))
+            {
+                return;
+            }
+
+            // Ensure a stale translation is never left behind: if the node no
+            // longer matches the original line, do not touch it.
+            if (DialogueSurface.ReadCleanText(textNode) != originalText && !string.IsNullOrEmpty(originalText))
+            {
+                diagnostics.OverlayLastSkipReason = "Node text changed during translation";
+                return;
+            }
+
+            var maxPx = textNode->Width * textNode->ScaleX;
+            var written = textNodeBuffer.SetText(textNode, translated, maxPx);
+            talkCapture.NoteInjectedText(activeSurface.Value, written);
+            diagnostics.OverlayLastSkipReason = string.Empty;
+            return;
+        }
+
+        if (translated == null)
+        {
+            if (!isPending || !configuration.OverlayShowPlaceholder)
+            {
+                diagnostics.OverlayLastSkipReason = "No translation yet (pending or failed); placeholder disabled";
+                return;
+            }
+
+            translated = configuration.OverlayPlaceholderText;
+        }
+
+        if (string.IsNullOrEmpty(translated))
+        {
+            return;
+        }
+
+        diagnostics.OverlayLastSkipReason = string.Empty;
+
+        DrawOverlay(textNode, translated, translatedName);
+    }
+
+    private unsafe void DrawMiniTalkOverlays(AtkUnitBase* addon)
+    {
+        foreach (var instance in talkCapture.GetVisibleMiniTalks())
+        {
+            var bubbler = (FFXIVClientStructs.FFXIV.Client.UI.AddonMiniTalk*)instance;
+            talkCapture.PollMiniTalkBubbles(bubbler);
+        }
+
+        foreach (var bubble in talkCapture.GetMiniBubbleViews())
+        {
+            var translated = bubble.Translated;
+            if (translated == null)
+            {
+                if (!bubble.Pending || !configuration.OverlayShowPlaceholder)
+                {
+                    continue;
+                }
+
+                translated = configuration.OverlayPlaceholderText;
+            }
+
+            if (string.IsNullOrEmpty(translated))
+            {
+                continue;
+            }
+
+            var textNode = (AtkTextNode*)bubble.TextNodePtr;
+            if (textNode == null)
+            {
+                continue;
+            }
+
+            diagnostics.NodeX = textNode->ScreenX;
+            diagnostics.NodeY = textNode->ScreenY;
+            diagnostics.NodeW = textNode->Width;
+            diagnostics.NodeH = textNode->Height;
+            DrawOverlay(textNode, translated, bubble.TranslatedName);
+        }
+
+        diagnostics.OverlaySurface = DialogueSurface.GetDisplayName(DialogueSurfaceKind.MiniTalk);
+    }
+
+    private unsafe void DrawOverlay(AtkTextNode* textNode, string translated, string? translatedName)
+    {
+        var hasName = !string.IsNullOrWhiteSpace(translatedName);
+        var display = hasName ? translatedName + "\n" + translated : translated;
+
+        var scale = Math.Max(configuration.OverlayFontScale, 0.1f);
+        var pos = new Vector2(textNode->ScreenX, textNode->ScreenY);
+        var nodeWidth = Math.Max(textNode->Width, 100f);
+        var nodeHeight = Math.Max(textNode->Height, 1f);
+
+        var wrapWidthUi = Math.Clamp(nodeWidth, 120f, configuration.OverlayMaxWidth);
+        var padding = 6f * scale;
+
+        using (overlayFont.Push())
+        {
+            // Measure with the overlay font (which includes CJK glyphs); the wrap
+            // width is expressed in font pixels, then scaled back up for the box.
+            var wrapWidthFont = wrapWidthUi / scale;
+            var textSizeFont = ImGui.CalcTextSize(display, false, wrapWidthFont);
+            // The window's own WindowPadding (set below) is (padding, padding), so a
+            // top margin of `padding` is inherent. Adding 3.5*padding to the height
+            // leaves ~1.5x that margin below the text for a balanced look.
+            var boxSize = new Vector2(wrapWidthUi + padding * 2f, textSizeFont.Y * scale + padding * 3.5f);
+
+            var boxPos = pos;
+            if (configuration.OverlayAboveText)
+            {
+                boxPos.Y -= boxSize.Y;
+            }
+            else if (!configuration.OverlayOnTopOfText)
+            {
+                boxPos.Y += nodeHeight + padding;
+            }
+
+            boxPos.Y += configuration.OverlayVerticalOffset;
+
+            var flags = ImGuiWindowFlags.NoDecoration
+                        | ImGuiWindowFlags.NoInputs
+                        | ImGuiWindowFlags.NoMove
+                        | ImGuiWindowFlags.NoFocusOnAppearing
+                        | ImGuiWindowFlags.NoNav
+                        | ImGuiWindowFlags.NoSavedSettings
+                        | ImGuiWindowFlags.NoResize
+                        | ImGuiWindowFlags.NoScrollbar;
+
+            if (!configuration.OverlayShowBackground)
+            {
+                flags |= ImGuiWindowFlags.NoBackground;
+            }
+
+            // The box background uses ImGui's default WindowBg color, with its own
+            // opacity so the background can be faded independently of the text.
+            var bgOpacity = configuration.OverlayBackgroundOpacity;
+            if (configuration.OverlayShowBackground && bgOpacity < 1f)
+            {
+                var bg = ImGui.GetStyle().Colors[(int)ImGuiCol.WindowBg];
+                bg.W = bgOpacity;
+                ImGui.PushStyleColor(ImGuiCol.WindowBg, bg);
+            }
+
+            // Match the window's own content padding to the box padding so the
+            // background leaves an even margin on every side (including bottom).
+            // Without this, ImGui's default padding makes the text wrap at a
+            // different width than was measured, overflowing the box bottom.
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(padding, padding));
+
+            ImGui.SetNextWindowPos(boxPos, ImGuiCond.Always);
+            ImGui.SetNextWindowSize(boxSize, ImGuiCond.Always);
+
+            if (ImGui.Begin("###TomestoneTalkOverlay", flags))
+            {
+                ImGui.SetWindowFontScale(scale);
+
+                if (hasName)
+                {
+                    ImGui.PushStyleColor(ImGuiCol.Text, ColorWithAlpha(configuration.OverlayNameColor, configuration.OverlayOpacity));
+                    ImGui.TextWrapped(translatedName);
+                    ImGui.PopStyleColor();
+                }
+
+                ImGui.PushStyleColor(ImGuiCol.Text, ColorWithAlpha(configuration.OverlayTextColor, configuration.OverlayOpacity));
+                ImGui.TextWrapped(translated);
+                ImGui.PopStyleColor();
+            }
+
+            ImGui.End();
+            if (configuration.OverlayShowBackground && configuration.OverlayBackgroundOpacity < 1f)
+            {
+                ImGui.PopStyleColor();
+            }
+
+            ImGui.PopStyleVar();
+        }
+    }
+
+    private static uint ColorWithAlpha(uint color, float alpha)
+    {
+        var a = (byte)Math.Clamp((int)(alpha * 255f), 0, 255);
+        return ((uint)a << 24) | (color & 0x00FFFFFF);
+    }
+
+    public void Dispose()
+    {
+        textNodeBuffer.Dispose();
+    }
+}
