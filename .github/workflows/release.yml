@@ -7,6 +7,8 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v2
       - name: Setup .NET
@@ -31,7 +33,7 @@ jobs:
 
       - name: Create Release
         run: |
-          gh release create "${{ github.ref_name }}" --latest --title "v${{ github.ref_name }}" --notes "Release v${{ github.ref_name }}"
+          gh release create "${{ github.ref_name }}" --latest --title "${{ github.ref_name }}" --notes "Release ${{ github.ref_name }}"
           gh release upload "${{ github.ref_name }}" "Tomestone.Translate.zip" --clobber
         env:
           GH_TOKEN: ${{ github.token }}
