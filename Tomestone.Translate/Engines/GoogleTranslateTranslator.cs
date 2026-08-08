@@ -55,7 +55,7 @@ public sealed class GoogleTranslateTranslator : TranslatorHttpBase
             {
                 var errorBody = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
                 Log.Warning($"[Tomestone.Translate] Google Translate returned {(int)response.StatusCode}: {errorBody}");
-                Diagnostics.Log($"Google Translate HTTP {(int)response.StatusCode}: {TruncateError(errorBody, 300)}");
+                Diagnostics.NoteFailure($"Google Translate HTTP {(int)response.StatusCode}: {TruncateError(errorBody, 300)}");
                 return null;
             }
 
@@ -65,7 +65,7 @@ public sealed class GoogleTranslateTranslator : TranslatorHttpBase
             var root = doc.RootElement;
             if (root.ValueKind != JsonValueKind.Array || root.GetArrayLength() == 0)
             {
-                Diagnostics.Log("Google Translate returned an unexpected response shape");
+                Diagnostics.NoteFailure("Google Translate returned an unexpected response shape");
                 return null;
             }
 
@@ -87,13 +87,13 @@ public sealed class GoogleTranslateTranslator : TranslatorHttpBase
         }
         catch (TaskCanceledException)
         {
-            Diagnostics.Log("Google Translate request timed out (30s)");
+            Diagnostics.NoteFailure("Google Translate request timed out (30s)");
             return null;
         }
         catch (Exception ex)
         {
             Log.Error(ex, "[Tomestone.Translate] Google Translate request failed");
-            Diagnostics.Log($"Google Translate request failed: {ex.Message}");
+            Diagnostics.NoteFailure($"Google Translate request failed: {ex.Message}");
             return null;
         }
     }

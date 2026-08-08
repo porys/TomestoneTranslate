@@ -74,7 +74,7 @@ public sealed class OpenAICompatibleTranslator : TranslatorHttpBase
             {
                 var errorBody = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
                 Log.Warning($"[Tomestone.Translate] Engine returned {(int)response.StatusCode}: {errorBody}");
-                Diagnostics.Log($"Engine HTTP {(int)response.StatusCode}: {TruncateError(errorBody, 300)}");
+                Diagnostics.NoteFailure($"Engine HTTP {(int)response.StatusCode}: {TruncateError(errorBody, 300)}");
                 return null;
             }
 
@@ -84,7 +84,7 @@ public sealed class OpenAICompatibleTranslator : TranslatorHttpBase
             var root = doc.RootElement;
             if (!root.TryGetProperty("choices", out var choices) || choices.GetArrayLength() == 0)
             {
-                Diagnostics.Log("Engine returned no 'choices' array");
+                Diagnostics.NoteFailure("Engine returned no 'choices' array");
                 return null;
             }
 
@@ -95,20 +95,20 @@ public sealed class OpenAICompatibleTranslator : TranslatorHttpBase
 
             if (text == null)
             {
-                Diagnostics.Log("Engine returned a message with no 'content'");
+                Diagnostics.NoteFailure("Engine returned a message with no 'content'");
             }
 
             return Normalize(text);
         }
         catch (TaskCanceledException)
         {
-            Diagnostics.Log("Engine request timed out (30s)");
+            Diagnostics.NoteFailure("Engine request timed out (30s)");
             return null;
         }
         catch (Exception ex)
         {
             Log.Error(ex, "[Tomestone.Translate] Engine request failed");
-            Diagnostics.Log($"Engine request failed: {ex.Message}");
+            Diagnostics.NoteFailure($"Engine request failed: {ex.Message}");
             return null;
         }
     }

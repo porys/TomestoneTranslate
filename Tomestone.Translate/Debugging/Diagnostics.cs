@@ -42,6 +42,20 @@ public sealed class Diagnostics
         }
     }
 
+    // Most recent translation failure. User-facing; survives until a success.
+    public string? LastError { get; private set; }
+
+    public void NoteFailure(string message)
+    {
+        LastError = message;
+        Log(message);
+    }
+
+    public void ClearFailure()
+    {
+        LastError = null;
+    }
+
     public IReadOnlyList<string> RecentLines(int max = 0)
     {
         var all = ring.Reverse().ToArray();

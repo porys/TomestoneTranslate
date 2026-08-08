@@ -73,7 +73,7 @@ public sealed class Plugin : IDalamudPlugin
         overlayDrawer = new OverlayDrawer(Configuration, talkCapture, diagnostics, overlayFont);
 
         configWindow = new ConfigWindow(this, translationService, talkCapture, diagnostics, DataManager.Language);
-        mainWindow = new MainWindow(this, translationService, talkCapture);
+        mainWindow = new MainWindow(this, translationService, talkCapture, diagnostics);
 
         windowSystem.AddWindow(configWindow);
         windowSystem.AddWindow(mainWindow);

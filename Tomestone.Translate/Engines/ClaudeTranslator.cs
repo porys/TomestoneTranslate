@@ -79,7 +79,7 @@ public sealed class ClaudeTranslator : TranslatorHttpBase
             {
                 var errorBody = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
                 Log.Warning($"[Tomestone.Translate] Claude returned {(int)response.StatusCode}: {errorBody}");
-                Diagnostics.Log($"Claude HTTP {(int)response.StatusCode}: {TruncateError(errorBody, 300)}");
+                Diagnostics.NoteFailure($"Claude HTTP {(int)response.StatusCode}: {TruncateError(errorBody, 300)}");
                 return null;
             }
 
@@ -89,7 +89,7 @@ public sealed class ClaudeTranslator : TranslatorHttpBase
             var root = doc.RootElement;
             if (!root.TryGetProperty("content", out var content) || content.GetArrayLength() == 0)
             {
-                Diagnostics.Log("Claude returned no 'content' array");
+                Diagnostics.NoteFailure("Claude returned no 'content' array");
                 return null;
             }
 
@@ -107,13 +107,13 @@ public sealed class ClaudeTranslator : TranslatorHttpBase
         }
         catch (TaskCanceledException)
         {
-            Diagnostics.Log("Claude request timed out (30s)");
+            Diagnostics.NoteFailure("Claude request timed out (30s)");
             return null;
         }
         catch (Exception ex)
         {
             Log.Error(ex, "[Tomestone.Translate] Claude request failed");
-            Diagnostics.Log($"Claude request failed: {ex.Message}");
+            Diagnostics.NoteFailure($"Claude request failed: {ex.Message}");
             return null;
         }
     }

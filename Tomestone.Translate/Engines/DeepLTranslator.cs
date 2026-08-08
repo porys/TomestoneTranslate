@@ -75,7 +75,7 @@ public sealed class DeepLTranslator : TranslatorHttpBase
             {
                 var errorBody = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
                 Log.Warning($"[Tomestone.Translate] DeepL returned {(int)response.StatusCode}: {errorBody}");
-                Diagnostics.Log($"DeepL HTTP {(int)response.StatusCode}: {TruncateError(errorBody, 300)}");
+                Diagnostics.NoteFailure($"DeepL HTTP {(int)response.StatusCode}: {TruncateError(errorBody, 300)}");
                 return null;
             }
 
@@ -85,27 +85,27 @@ public sealed class DeepLTranslator : TranslatorHttpBase
             var root = doc.RootElement;
             if (!root.TryGetProperty("translations", out var translations) || translations.GetArrayLength() == 0)
             {
-                Diagnostics.Log("DeepL returned no 'translations' array");
+                Diagnostics.NoteFailure("DeepL returned no 'translations' array");
                 return null;
             }
 
             var text = translations[0].TryGetProperty("text", out var translated) ? translated.GetString() : null;
             if (text == null)
             {
-                Diagnostics.Log("DeepL response had no 'text'");
+                Diagnostics.NoteFailure("DeepL response had no 'text'");
             }
 
             return Normalize(text);
         }
         catch (TaskCanceledException)
         {
-            Diagnostics.Log("DeepL request timed out (30s)");
+            Diagnostics.NoteFailure("DeepL request timed out (30s)");
             return null;
         }
         catch (Exception ex)
         {
             Log.Error(ex, "[Tomestone.Translate] DeepL request failed");
-            Diagnostics.Log($"DeepL request failed: {ex.Message}");
+            Diagnostics.NoteFailure($"DeepL request failed: {ex.Message}");
             return null;
         }
     }

@@ -930,7 +930,7 @@ public sealed class TalkCaptureService : IDisposable
         if (!translationService.IsConfigured)
         {
             OverlayState.Complete(generation, null, "Engine not configured");
-            diagnostics.Log("Translate skipped: engine not configured (check Engine tab / base URL / model)");
+            diagnostics.NoteFailure("Engine not configured - check the Translation tab (engine, base URL, model, API key)");
             return;
         }
 
@@ -966,6 +966,7 @@ public sealed class TalkCaptureService : IDisposable
             }
             else
             {
+                diagnostics.ClearFailure();
                 Interlocked.Increment(ref diagnostics.TranslationsSucceeded);
                 diagnostics.Log($"[{surface}] Translated -> '{Inline(translated)}'");
             }
@@ -979,7 +980,7 @@ public sealed class TalkCaptureService : IDisposable
         {
             Interlocked.Increment(ref diagnostics.TranslationsFailed);
             log.Error(ex, "Error translating dialogue line");
-            diagnostics.Log($"[{surface}] Translation exception: {ex.Message}");
+            diagnostics.NoteFailure($"[{surface}] Translation exception: {ex.Message}");
             OverlayState.Complete(generation, null, null, "Translation error");
         }
     }

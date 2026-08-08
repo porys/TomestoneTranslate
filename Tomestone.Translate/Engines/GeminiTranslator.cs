@@ -80,7 +80,7 @@ public sealed class GeminiTranslator : TranslatorHttpBase
             {
                 var errorBody = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
                 Log.Warning($"[Tomestone.Translate] Gemini returned {(int)response.StatusCode}: {errorBody}");
-                Diagnostics.Log($"Gemini HTTP {(int)response.StatusCode}: {TruncateError(errorBody, 300)}");
+                Diagnostics.NoteFailure($"Gemini HTTP {(int)response.StatusCode}: {TruncateError(errorBody, 300)}");
                 return null;
             }
 
@@ -90,7 +90,7 @@ public sealed class GeminiTranslator : TranslatorHttpBase
             var root = doc.RootElement;
             if (!root.TryGetProperty("candidates", out var candidates) || candidates.GetArrayLength() == 0)
             {
-                Diagnostics.Log("Gemini returned no 'candidates' array");
+                Diagnostics.NoteFailure("Gemini returned no 'candidates' array");
                 return null;
             }
 
@@ -111,13 +111,13 @@ public sealed class GeminiTranslator : TranslatorHttpBase
         }
         catch (TaskCanceledException)
         {
-            Diagnostics.Log("Gemini request timed out (30s)");
+            Diagnostics.NoteFailure("Gemini request timed out (30s)");
             return null;
         }
         catch (Exception ex)
         {
             Log.Error(ex, "[Tomestone.Translate] Gemini request failed");
-            Diagnostics.Log($"Gemini request failed: {ex.Message}");
+            Diagnostics.NoteFailure($"Gemini request failed: {ex.Message}");
             return null;
         }
     }

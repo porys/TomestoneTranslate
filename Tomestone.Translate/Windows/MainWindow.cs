@@ -3,6 +3,7 @@ using Dalamud.Interface.Windowing;
 using System;
 using System.Numerics;
 using Tomestone.Translate.Capture;
+using Tomestone.Translate.Debugging;
 using Tomestone.Translate.Engines;
 
 namespace Tomestone.Translate.Windows;
@@ -12,13 +13,15 @@ public class MainWindow : Window, IDisposable
     private readonly Plugin plugin;
     private readonly TranslationService translationService;
     private readonly TalkCaptureService talkCapture;
+    private readonly Diagnostics diagnostics;
 
-    public MainWindow(Plugin plugin, TranslationService translationService, TalkCaptureService talkCapture)
+    public MainWindow(Plugin plugin, TranslationService translationService, TalkCaptureService talkCapture, Diagnostics diagnostics)
         : base("Tomestone Translate###TomestoneTranslateMain", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
     {
         this.plugin = plugin;
         this.translationService = translationService;
         this.talkCapture = talkCapture;
+        this.diagnostics = diagnostics;
 
         SizeConstraints = new WindowSizeConstraints
         {
@@ -60,6 +63,13 @@ public class MainWindow : Window, IDisposable
         {
             DrawStatus("Inactive", "Target language matches the game client language.",
                 new Vector4(1f, 0.7f, 0.3f, 1f), "No translation is needed - the text is already in the target language.");
+            return;
+        }
+
+        if (diagnostics.LastError is { Length: > 0 } error)
+        {
+            DrawStatus("Error", "Last translation attempt failed.",
+                new Vector4(1f, 0.3f, 0.3f, 1f), $"{error} - check the Translation tab; recovers after a success.");
             return;
         }
 

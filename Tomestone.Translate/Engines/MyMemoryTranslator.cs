@@ -54,7 +54,7 @@ public sealed class MyMemoryTranslator : TranslatorHttpBase
             {
                 var errorBody = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
                 Log.Warning($"[Tomestone.Translate] MyMemory returned {(int)response.StatusCode}: {errorBody}");
-                Diagnostics.Log($"MyMemory HTTP {(int)response.StatusCode}: {TruncateError(errorBody, 300)}");
+                Diagnostics.NoteFailure($"MyMemory HTTP {(int)response.StatusCode}: {TruncateError(errorBody, 300)}");
                 return null;
             }
 
@@ -66,7 +66,7 @@ public sealed class MyMemoryTranslator : TranslatorHttpBase
                 || !responseData.TryGetProperty("translatedText", out var translated)
                 || translated.ValueKind != JsonValueKind.String)
             {
-                Diagnostics.Log("MyMemory returned an unexpected response shape");
+                Diagnostics.NoteFailure("MyMemory returned an unexpected response shape");
                 return null;
             }
 
@@ -74,13 +74,13 @@ public sealed class MyMemoryTranslator : TranslatorHttpBase
         }
         catch (TaskCanceledException)
         {
-            Diagnostics.Log("MyMemory request timed out (30s)");
+            Diagnostics.NoteFailure("MyMemory request timed out (30s)");
             return null;
         }
         catch (Exception ex)
         {
             Log.Error(ex, "[Tomestone.Translate] MyMemory request failed");
-            Diagnostics.Log($"MyMemory request failed: {ex.Message}");
+            Diagnostics.NoteFailure($"MyMemory request failed: {ex.Message}");
             return null;
         }
     }

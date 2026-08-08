@@ -158,13 +158,19 @@ public sealed class OverlayDrawer
 
         if (translated == null)
         {
-            if (!isPending || !configuration.OverlayShowPlaceholder)
+            if (!isPending && !string.IsNullOrEmpty(diagnostics.LastError))
+            {
+                translated = $"! {diagnostics.LastError}";
+            }
+            else if (!isPending || !configuration.OverlayShowPlaceholder)
             {
                 diagnostics.OverlayLastSkipReason = "No translation yet (pending or failed); placeholder disabled";
                 return;
             }
-
-            translated = configuration.OverlayPlaceholderText;
+            else
+            {
+                translated = configuration.OverlayPlaceholderText;
+            }
         }
 
         if (string.IsNullOrEmpty(translated))
