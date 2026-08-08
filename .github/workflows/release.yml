@@ -23,11 +23,11 @@ jobs:
         shell: bash
         run: |
           ver="${GITHUB_REF_NAME#v}"
-          dotnet build "Tomestone.Translate\Tomestone.Translate\Tomestone.Translate.csproj" -c Release -p:Version="$ver" --nologo
+          dotnet build "Tomestone.Translate\Tomestone.Translate.csproj" -c Release -p:Version="$ver" --nologo
 
       - name: Stage package
         run: |
-          Copy-Item "Tomestone.Translate\Tomestone.Translate\bin\Release\Tomestone.Translate\latest.zip" -Destination ".\Tomestone.Translate.zip" -Force
+          Copy-Item "Tomestone.Translate\bin\Release\Tomestone.Translate\latest.zip" -Destination ".\Tomestone.Translate.zip" -Force
 
       - name: Create Release
         run: |

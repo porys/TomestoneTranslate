@@ -6,24 +6,26 @@ as an overlay. C# / .NET, single project, built against the local Dalamud SDK
 transitively from the SDK and is resolved to the current game build (7.51.0.8681 on
 the last-verified client).
 
-## Layout (non-obvious nesting)
+## Layout
 
-The repo root is `projects\Tomestone Translate`. Everything is nested one level:
+The repo root is `projects\Tomestone Translate\Tomestone.Translate` (a git repo,
+`origin` = `porys/TomestoneTranslate`). From the repo root:
 
-- `Tomestone.Translate/Tomestone.Translate.slnx` — solution
-- `Tomestone.Translate/Tomestone.Translate/Tomestone.Translate.csproj` — actual project
-- `Tomestone.Translate/scripts/copy-to-dev.ps1` — deploy script
-- `Tomestone.Translate/README.md`
+- `Tomestone.Translate.slnx` — solution
+- `Tomestone.Translate/Tomestone.Translate.csproj` — actual project
+- `scripts/copy-to-dev.ps1` — deploy script
+- `deploy/pluginmaster.json` — Dalamud pluginmaster entry for the distro repo
+- `.github/workflows/release.yml` — tag `v*` → build Release → GitHub release
+- `AGENTS.md`, `README.md`, `.gitignore`
 
-So from the repo root, the csproj path is
-`Tomestone.Translate\Tomestone.Translate\Tomestone.Translate.csproj`.
-Not a git repo.
+GitHub-Actions side note: release workflow builds from `main`; **patch releases
+are triggered by pushing a `v*` tag** (version is read from the tag, e.g. `v0.0.0.2`).
 
 ## Build & deploy (exact, Debug matters)
 
 ```powershell
-dotnet build "Tomestone.Translate\Tomestone.Translate\Tomestone.Translate.csproj" -c Debug
-powershell -ExecutionPolicy Bypass -File "Tomestone.Translate\scripts\copy-to-dev.ps1"
+dotnet build "Tomestone.Translate\Tomestone.Translate.csproj" -c Debug
+powershell -ExecutionPolicy Bypass -File "scripts\copy-to-dev.ps1"
 ```
 
 - Must build **Debug** — the deploy script reads from `bin\Debug`.
