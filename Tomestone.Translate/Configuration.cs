@@ -26,7 +26,7 @@ public class Configuration : IPluginConfiguration
 
     /// <summary>When enabled, translation is paused while inside an instanced duty
     /// (dungeon, trial, raid) and resumes automatically outside.</summary>
-    public bool DisableInsideInstance { get; set; } = true;
+    public bool DisableInsideInstance { get; set; } = false;
 
     // ---- Translation target -------------------------------------------------
     /// <summary>Target language for translations, e.g. "English" or a language code like "en".</summary>
@@ -72,7 +72,7 @@ public class Configuration : IPluginConfiguration
     public bool OverlayAboveText { get; set; } = true;
     public bool OverlayOnTopOfText { get; set; } = false;
     public float OverlayFontScale { get; set; } = 1.0f;
-    public float OverlayVerticalOffset { get; set; } = -35f;
+    public float OverlayVerticalOffset { get; set; } = 0f;
     public float OverlayOpacity { get; set; } = 1.0f;
     public float OverlayBackgroundOpacity { get; set; } = 1.0f;
     public float OverlayMaxWidth { get; set; } = 800f;

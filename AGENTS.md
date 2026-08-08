@@ -95,8 +95,9 @@ still forces it). The config UI lives at `/ttconfig`, main window `/tt`.
 - MyMemory is the only free provider that can't auto-detect the source: it needs the game
   client's language code (`TargetLanguageCodes.ClientLanguageCode`), unlike Google
   Translate's `sl=auto`. It also caps at 500 bytes/request and 5k chars/day anonymous.
-- `OverlayVerticalOffset` is auto-set when the position radio changes (−35 above / 0 on
-  top / 15 below); default for new installs is −35 to match the default "above" position.
+- `OverlayVerticalOffset` is 0 for all position presets (radio buttons reset it to 0).
+  MiniTalk bubbles are always drawn with offset 0, regardless of the user setting. It is
+  applied per-overlay via a `verticalOffset` argument to `OverlayDrawer.DrawOverlay`.
 
 ## UI conventions
 

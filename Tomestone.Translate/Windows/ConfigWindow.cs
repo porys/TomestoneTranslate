@@ -647,7 +647,7 @@ private void DrawChatSharedFields()
         {
             configuration.OverlayAboveText = true;
             configuration.OverlayOnTopOfText = false;
-            configuration.OverlayVerticalOffset = -35f;
+            configuration.OverlayVerticalOffset = 0f;
             configuration.Save();
         }
 
@@ -663,7 +663,7 @@ private void DrawChatSharedFields()
         {
             configuration.OverlayAboveText = false;
             configuration.OverlayOnTopOfText = false;
-            configuration.OverlayVerticalOffset = 15f;
+            configuration.OverlayVerticalOffset = 0f;
             configuration.Save();
         }
 

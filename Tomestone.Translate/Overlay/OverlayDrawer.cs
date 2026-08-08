@@ -174,7 +174,7 @@ public sealed class OverlayDrawer
 
         diagnostics.OverlayLastSkipReason = string.Empty;
 
-        DrawOverlay(textNode, translated, translatedName);
+        DrawOverlay(textNode, translated, translatedName, configuration.OverlayVerticalOffset);
     }
 
     private unsafe void DrawMiniTalkOverlays(AtkUnitBase* addon)
@@ -213,13 +213,13 @@ public sealed class OverlayDrawer
             diagnostics.NodeY = textNode->ScreenY;
             diagnostics.NodeW = textNode->Width;
             diagnostics.NodeH = textNode->Height;
-            DrawOverlay(textNode, translated, bubble.TranslatedName);
+            DrawOverlay(textNode, translated, bubble.TranslatedName, 0f);
         }
 
         diagnostics.OverlaySurface = DialogueSurface.GetDisplayName(DialogueSurfaceKind.MiniTalk);
     }
 
-    private unsafe void DrawOverlay(AtkTextNode* textNode, string translated, string? translatedName)
+    private unsafe void DrawOverlay(AtkTextNode* textNode, string translated, string? translatedName, float verticalOffset)
     {
         var hasName = !string.IsNullOrWhiteSpace(translatedName);
         var display = hasName ? translatedName + "\n" + translated : translated;
@@ -253,7 +253,12 @@ public sealed class OverlayDrawer
                 boxPos.Y += nodeHeight + padding;
             }
 
-            boxPos.Y += configuration.OverlayVerticalOffset;
+            boxPos.Y += verticalOffset;
+
+            if (configuration.OverlayAboveText && hasName)
+            {
+                boxPos.Y -= 30f;
+            }
 
             var flags = ImGuiWindowFlags.NoDecoration
                         | ImGuiWindowFlags.NoInputs
