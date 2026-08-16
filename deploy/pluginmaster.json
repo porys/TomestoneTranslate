@@ -3,7 +3,7 @@
     "Author": "Porys",
     "Name": "Tomestone Translate",
     "InternalName": "Tomestone.Translate",
-    "AssemblyVersion": "0.0.0.2",
+    "AssemblyVersion": "0.0.0.3",
     "Description": "Translates in-game cutscene and NPC dialogue in real time using a user-defined AI translation endpoint (OpenAI-compatible, e.g. OpenAI, DeepSeek, Ollama, LM Studio, OpenRouter). The translation is drawn as an overlay on top of or above the original text.\n\nCommands:\n/tt - open the main window\n/ttconfig - open the settings window",
     "ApplicableVersion": "any",
     "Tags": [
@@ -25,7 +25,7 @@
     "DownloadLinkInstall": "https://github.com/porys/TomestoneTranslate/releases/latest/download/Tomestone.Translate.zip",
     "DownloadLinkTesting": "",
     "DownloadLinkUpdate": "https://github.com/porys/TomestoneTranslate/releases/latest/download/Tomestone.Translate.zip",
-    "LastUpdate": 1786174703,
+    "LastUpdate": 1786882574,
     "RepoUrl": "https://github.com/porys/TomestoneTranslate",
     "IsHide": false
   }
