@@ -37,3 +37,27 @@ jobs:
           gh release upload "${{ github.ref_name }}" "Tomestone.Translate.zip" --clobber
         env:
           GH_TOKEN: ${{ github.token }}
+
+      - name: Update pluginmaster (xivplugins)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.XIVPLUGINS_TOKEN }}
+        run: |
+          ver="${GITHUB_REF_NAME#v}"
+          cur=$(grep -oP '"AssemblyVersion": "\K[^"]+' deploy/pluginmaster.json)
+          if [ "$ver" = "$cur" ]; then
+            echo "Version $ver unchanged, skipping pluginmaster update"
+            exit 0
+          fi
+          sed -i "s/\"AssemblyVersion\": \"$cur\"/\"AssemblyVersion\": \"$ver\"/" deploy/pluginmaster.json
+          sed -i "s/\"LastUpdate\": [0-9]*/\"LastUpdate\": $(date +%s)/" deploy/pluginmaster.json
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add deploy/pluginmaster.json
+          git commit -m "pluginmaster: bump $ver"
+          git push origin main
+          git clone https://github.com/porys/xivplugins xiv
+          cp deploy/pluginmaster.json xiv/pluginmaster.json
+          git -C xiv add pluginmaster.json
+          git -C xiv commit -m "Tomestone Translate $ver"
+          git -C xiv push
