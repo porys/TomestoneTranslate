@@ -88,6 +88,9 @@ public sealed class Plugin : IDalamudPlugin
             HelpMessage = "Open the Tomestone Translate settings window."
         });
 
+        PluginInterface.UiBuilder.DisableCutsceneUiHide = true;
+        PluginInterface.UiBuilder.DisableAutomaticUiHide = true;
+
         PluginInterface.UiBuilder.Draw += windowSystem.Draw;
         PluginInterface.UiBuilder.Draw += overlayDrawer.Draw;
         PluginInterface.UiBuilder.OpenConfigUi += ToggleConfigUi;
