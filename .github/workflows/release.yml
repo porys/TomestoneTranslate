@@ -58,6 +58,8 @@ jobs:
           git push origin HEAD:main
           git clone https://github.com/porys/xivplugins xiv
           cp deploy/pluginmaster.json xiv/pluginmaster.json
+          git -C xiv config user.name "github-actions"
+          git -C xiv config user.email "actions@github.com"
           git -C xiv add pluginmaster.json
           git -C xiv commit -m "Tomestone Translate $ver"
           git -C xiv push
