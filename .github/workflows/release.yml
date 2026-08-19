@@ -56,7 +56,7 @@ jobs:
           git add deploy/pluginmaster.json
           git commit -m "pluginmaster: bump $ver"
           git push origin HEAD:main
-          git clone https://github.com/porys/xivplugins xiv
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/porys/xivplugins" xiv
           cp deploy/pluginmaster.json xiv/pluginmaster.json
           git -C xiv config user.name "github-actions"
           git -C xiv config user.email "actions@github.com"
