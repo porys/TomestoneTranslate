@@ -89,6 +89,8 @@ public class Configuration : IPluginConfiguration
     public bool TranslateBattleTalk { get; set; } = true;
     public bool TranslateMiniTalk { get; set; } = true;
     public bool TranslateSelectString { get; set; } = true;
+    public bool TranslateQuestWindow { get; set; } = true;
+    public bool TranslateQuestDetail { get; set; } = true;
     public bool TranslateSpeakerNames { get; set; } = true;
 
     // ---- Window bookkeeping -------------------------------------------------

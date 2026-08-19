@@ -119,6 +119,8 @@ public sealed class TalkCaptureService : IDisposable
             DialogueSurfaceKind.BattleTalk => config.TranslateBattleTalk,
             DialogueSurfaceKind.MiniTalk => config.TranslateMiniTalk,
             DialogueSurfaceKind.SelectString => config.TranslateSelectString,
+            DialogueSurfaceKind.JournalAccept => config.TranslateQuestWindow,
+            DialogueSurfaceKind.JournalDetail => config.TranslateQuestDetail,
             _ => false,
         };
     }
@@ -210,6 +212,22 @@ public sealed class TalkCaptureService : IDisposable
             trackedNodePtr = miniNode != null ? (nint)miniNode : 0;
             trackedAddonPtr = addonPtr;
             return miniNode;
+        }
+
+        if (surface == DialogueSurfaceKind.JournalAccept)
+        {
+            var canvasText = GetJournalCanvasDescriptionNode(((AddonJournalAccept*)addon)->JournalCanvas);
+            trackedNodePtr = canvasText != null ? (nint)canvasText : 0;
+            trackedAddonPtr = addonPtr;
+            return canvasText;
+        }
+
+        if (surface == DialogueSurfaceKind.JournalDetail)
+        {
+            var canvasText = GetJournalCanvasDescriptionNode(((AddonJournalDetail*)addon)->JournalCanvasNode);
+            trackedNodePtr = canvasText != null ? (nint)canvasText : 0;
+            trackedAddonPtr = addonPtr;
+            return canvasText;
         }
 
         if (trackedNodePtr != 0 && trackedAddonPtr == addonPtr)
@@ -389,6 +407,23 @@ public sealed class TalkCaptureService : IDisposable
                 var text = node == null ? string.Empty : ReadUtf8NodeText(node);
                 sb.AppendLine($"  bubble[{i}] text='{Truncate(text, 40)}' (len={text.Length})");
             }
+        }
+
+        if (addonName == DialogueSurface.JournalAcceptAddonName)
+        {
+            var journal = (AddonJournalAccept*)addon;
+            var canvas = journal->JournalCanvasText;
+            sb.AppendLine($"JournalCanvasText: {(canvas == null ? "null" : $"'{Truncate(ReadUtf8NodeText(canvas), 120)}' (len={ReadUtf8NodeText(canvas).Length})")}");
+            DumpJournalCanvas(sb, journal->JournalCanvas);
+        }
+
+        if (addonName == DialogueSurface.JournalDetailAddonName)
+        {
+            var journal = (AddonJournalDetail*)addon;
+            var node33 = journal->AtkUnitBase.GetTextNodeById(33);
+            var node33Text = node33 == null ? string.Empty : ReadUtf8NodeText(node33);
+            sb.AppendLine($"GetTextNodeById(33): '{(node33 == null ? "null" : Truncate(node33Text, 120))}' (len={node33Text.Length})");
+            DumpJournalCanvas(sb, journal->JournalCanvasNode);
         }
 
         var histogram = new int[16];
@@ -802,14 +837,105 @@ public sealed class TalkCaptureService : IDisposable
         }
     }
 
+    private static unsafe void DumpJournalCanvas(StringBuilder sb, AtkComponentJournalCanvas* journalCanvas)
+    {
+        if (journalCanvas == null)
+        {
+            sb.AppendLine("JournalCanvas: null");
+            return;
+        }
+
+        var uld = journalCanvas->UldManager;
+        sb.AppendLine($"JournalCanvas NodeListCount: {uld.NodeListCount}");
+        for (var i = 0; i < uld.NodeListCount; i++)
+        {
+            var n = uld.NodeList[i];
+            if (n == null)
+            {
+                continue;
+            }
+
+            if (n->Type == NodeType.Text)
+            {
+                var text = ReadUtf8NodeText((AtkTextNode*)n);
+                sb.AppendLine($"  canvasNode[{i}] id={(uint)n->NodeId} text='{Truncate(text, 120)}' (len={text.Length})");
+                if (!string.IsNullOrEmpty(text))
+                {
+                    sb.AppendLine($"      raw={EscapeForDiagnostics(text)}");
+                }
+            }
+            else
+            {
+                sb.AppendLine($"  canvasNode[{i}] id={(uint)n->NodeId} type={(byte)n->Type}");
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Finds the quest-description text node inside a journal canvas. The
+    ///     description is rendered inside the <see cref="AtkComponentJournalCanvas"/>
+    ///     component (used by JournalAccept and JournalDetail), whose nodes live in
+    ///     its own UldManager (not the addon's), so it is found by scanning the
+    ///     canvas node list for the known description node id (75), falling back to
+    ///     the longest non-empty text node in the canvas.
+    /// </summary>
+    private static unsafe AtkTextNode* GetJournalCanvasDescriptionNode(AtkComponentJournalCanvas* canvas)
+    {
+        if (canvas == null)
+        {
+            return null;
+        }
+
+        AtkTextNode* best = null;
+        var bestLen = 0;
+        var uld = canvas->UldManager;
+        for (var i = 0; i < uld.NodeListCount; i++)
+        {
+            var node = uld.NodeList[i];
+            if (node == null || node->Type != NodeType.Text)
+            {
+                continue;
+            }
+
+            var textNode = (AtkTextNode*)node;
+            if (textNode->NodeId == 75)
+            {
+                return textNode;
+            }
+
+            var len = DialogueSurface.ReadCleanText(textNode).Length;
+            if (len > bestLen)
+            {
+                best = textNode;
+                bestLen = len;
+            }
+        }
+
+        return best;
+    }
+
     /// <summary>
     ///     Reads the text (and speaker name, when the surface has one) for the
     ///     current frame of a dialogue surface.
     /// </summary>
-    private static unsafe bool TryReadSurfaceText(AtkUnitBase* addon, DialogueSurfaceKind surface, out string text, out string name)
+    private unsafe bool TryReadSurfaceText(AtkUnitBase* addon, DialogueSurfaceKind surface, out string text, out string name)
     {
         text = string.Empty;
         name = string.Empty;
+
+        if (surface == DialogueSurfaceKind.JournalAccept)
+        {
+            var canvasText = GetJournalCanvasDescriptionNode(((AddonJournalAccept*)addon)->JournalCanvas);
+            text = canvasText == null ? string.Empty : DialogueSurface.ReadCleanText(canvasText);
+            return !string.IsNullOrWhiteSpace(text);
+        }
+
+        if (surface == DialogueSurfaceKind.JournalDetail)
+        {
+            var canvasText = GetJournalCanvasDescriptionNode(((AddonJournalDetail*)addon)->JournalCanvasNode);
+            text = canvasText == null ? string.Empty : DialogueSurface.ReadCleanText(canvasText);
+            return !string.IsNullOrWhiteSpace(text);
+        }
 
         if (surface == DialogueSurfaceKind.MiniTalk)
         {

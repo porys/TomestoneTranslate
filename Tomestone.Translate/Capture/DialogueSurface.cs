@@ -18,7 +18,9 @@ public enum DialogueSurfaceKind
     TalkSubtitle,
     BattleTalk,
     MiniTalk,
-    SelectString,
+SelectString,
+    JournalAccept,
+    JournalDetail,
 }
 
 /// <summary>
@@ -33,6 +35,8 @@ public static class DialogueSurface
     public const string BattleTalkAddonName = "_BattleTalk";
     public const string MiniTalkAddonName = "_MiniTalk";
     public const string SelectStringAddonName = "SelectString";
+    public const string JournalAcceptAddonName = "JournalAccept";
+    public const string JournalDetailAddonName = "JournalDetail";
 
     public static readonly string[] AllAddonNames =
     {
@@ -41,6 +45,21 @@ public static class DialogueSurface
         BattleTalkAddonName,
         MiniTalkAddonName,
         SelectStringAddonName,
+        JournalAcceptAddonName,
+        JournalDetailAddonName,
+    };
+
+    // Scan-only candidates in the Developer tab; not capture surfaces.
+    public static readonly string[] ScanAddonNames = new[]
+    {
+        TalkAddonName,
+        TalkSubtitleAddonName,
+        BattleTalkAddonName,
+        MiniTalkAddonName,
+        SelectStringAddonName,
+        JournalAcceptAddonName,
+        "Journal",
+        "JournalDetail",
     };
 
     /// <summary>
@@ -51,7 +70,7 @@ public static class DialogueSurface
     ///     overwritten immediately and is not reliable.
     /// </summary>
     public static bool SupportsTextReplacement(DialogueSurfaceKind surface)
-        => surface != DialogueSurfaceKind.MiniTalk;
+        => surface is not (DialogueSurfaceKind.MiniTalk or DialogueSurfaceKind.JournalAccept or DialogueSurfaceKind.JournalDetail);
 
     // Node ids are per-addon and were confirmed against the current client for
     // Talk; the remaining surfaces use ids matched via in-game scans.
@@ -63,6 +82,11 @@ public static class DialogueSurface
     private const uint TalkSubtitleTextNodeId = 2;
     private const uint SelectStringTextNodeId = 2;
 
+    // JournalAccept's quest-description node id is not hardcoded; it is
+    // discovered at runtime via ScanAddonNodes. Node id 0 makes the capture
+    // fall back to the longest text node, which is the description paragraph.
+    private const uint JournalAcceptTextNodeId = 0;
+
     public static string GetAddonName(DialogueSurfaceKind surface)
         => surface switch
         {
@@ -71,6 +95,8 @@ public static class DialogueSurface
             DialogueSurfaceKind.BattleTalk => BattleTalkAddonName,
             DialogueSurfaceKind.MiniTalk => MiniTalkAddonName,
             DialogueSurfaceKind.SelectString => SelectStringAddonName,
+            DialogueSurfaceKind.JournalAccept => JournalAcceptAddonName,
+            DialogueSurfaceKind.JournalDetail => JournalDetailAddonName,
             _ => TalkAddonName,
         };
 
@@ -82,6 +108,8 @@ public static class DialogueSurface
             DialogueSurfaceKind.BattleTalk => BattleTalkTextNodeId,
             DialogueSurfaceKind.MiniTalk => MiniTalkTextNodeId,
             DialogueSurfaceKind.SelectString => SelectStringTextNodeId,
+            DialogueSurfaceKind.JournalAccept => JournalAcceptTextNodeId,
+            DialogueSurfaceKind.JournalDetail => JournalAcceptTextNodeId,
             _ => TalkTextNodeId,
         };
 
@@ -102,6 +130,8 @@ public static class DialogueSurface
             DialogueSurfaceKind.BattleTalk => "Duty & event dialogue",
             DialogueSurfaceKind.MiniTalk => "World NPC chat bubbles",
             DialogueSurfaceKind.SelectString => "Dialogue choices",
+            DialogueSurfaceKind.JournalAccept => "Quest Accept Window",
+            DialogueSurfaceKind.JournalDetail => "Quest Detail Window",
             _ => surface.ToString(),
         };
 
@@ -136,6 +166,8 @@ public static class DialogueSurface
         {
             return text;
         }
+
+        text = text.Replace("\r\n", "\n").Replace('\r', '\n');
 
         var noTags = AngleMarkupRegex.Replace(text, string.Empty);
         noTags = ColorMarkupRegex.Replace(noTags, string.Empty);
@@ -201,6 +233,7 @@ public static class DialogueSurface
             ("<If(1)>Hello</If> world", "Hello world"),
             ("plain text", "plain text"),
             ("tab\tand\nnewline", "tab\tand\nnewline"),
+            ("Quest Sync\rThe herd is missing.", "Quest Sync\nThe herd is missing."),
             (
                 "from the \x02H\x04\uFFFD\x01\uFFFD\x03\x02I\x04\uFFFD\x01\uFFFD\x03Collection\x02I\x02\x01\x03\x02H\x02\x01\x03 menu",
                 "from the Collection menu"),

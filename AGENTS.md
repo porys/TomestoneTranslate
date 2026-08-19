@@ -13,7 +13,6 @@ The repo root is `projects\Tomestone Translate\Tomestone.Translate` (a git repo,
 
 - `Tomestone.Translate.slnx` — solution
 - `Tomestone.Translate/Tomestone.Translate.csproj` — actual project
-- `scripts/copy-to-dev.ps1` — deploy script
 - `deploy/pluginmaster.json` — Dalamud pluginmaster entry for the distro repo
 - `.github/workflows/release.yml` — tag `v*` → build Release → GitHub release
 - `AGENTS.md`, `README.md`, `.gitignore`
@@ -25,10 +24,11 @@ are triggered by pushing a `v*` tag** (version is read from the tag, e.g. `v0.0.
 
 ```powershell
 dotnet build "Tomestone.Translate\Tomestone.Translate.csproj" -c Debug
-powershell -ExecutionPolicy Bypass -File "scripts\copy-to-dev.ps1"
+Copy-Item "Tomestone.Translate\bin\Debug\Tomestone.Translate.dll" "$env:APPDATA\XIVLauncher\devPlugins\Tomestone.Translate" -Force
+Copy-Item "Tomestone.Translate\bin\Debug\Tomestone.Translate.json" "$env:APPDATA\XIVLauncher\devPlugins\Tomestone.Translate" -Force
 ```
 
-- Must build **Debug** — the deploy script reads from `bin\Debug`.
+- Must build **Debug** — deploy copies dll+json from `bin\Debug`.
 - Deploy copies dll+json to `%APPDATA%\XIVLauncher\devPlugins\Tomestone.Translate`.
 - No test project / test framework exists. Verification is build + manual in-game check.
 

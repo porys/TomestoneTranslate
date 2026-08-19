@@ -633,6 +633,8 @@ private void DrawChatSharedFields()
         DrawSurfaceToggle("Duty & event dialogue", configuration.TranslateBattleTalk, v => configuration.TranslateBattleTalk = v);
         DrawSurfaceToggle("World NPC chat bubbles", configuration.TranslateMiniTalk, v => configuration.TranslateMiniTalk = v);
         DrawSurfaceToggle("Dialogue choices", configuration.TranslateSelectString, v => configuration.TranslateSelectString = v);
+        DrawSurfaceToggle("Quest Accept Window", configuration.TranslateQuestWindow, v => configuration.TranslateQuestWindow = v);
+        DrawSurfaceToggle("Quest Detail Window", configuration.TranslateQuestDetail, v => configuration.TranslateQuestDetail = v);
     }
 
     private void DrawOverlaySection()
@@ -782,6 +784,10 @@ private void DrawChatSharedFields()
 
         DrawStatusRow("Engine ready", translationService.IsConfigured);
         DrawStatusRow("Translation active", plugin.IsTranslationActive());
+        if (!string.IsNullOrEmpty(diagnostics.OverlaySurfaceCheck))
+        {
+            DrawStatusRow("Surface check", diagnostics.OverlaySurfaceCheck);
+        }
         DrawStatusRow("Talk capture enabled", configuration.TranslateTalk);
         DrawStatusRow("Target language", configuration.TargetLanguage);
 
@@ -813,7 +819,7 @@ private void DrawChatSharedFields()
             ImGui.SetNextItemWidth(180f);
             if (ImGui.BeginCombo("Scan addon", scanAddon))
             {
-                foreach (var addonName in DialogueSurface.AllAddonNames)
+                foreach (var addonName in DialogueSurface.ScanAddonNames)
                 {
                     if (ImGui.Selectable(addonName, addonName == scanAddon))
                     {

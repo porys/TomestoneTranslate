@@ -29,6 +29,7 @@ public sealed class Diagnostics
     public bool TextNodeFound;
     public float NodeX, NodeY, NodeW, NodeH;
     public string? OverlaySurface;
+    public string? OverlaySurfaceCheck;
     public string? OverlayLastSkipReason;
 
     public void Track(int by) => Interlocked.Add(ref RefreshEvents, by);

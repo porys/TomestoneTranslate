@@ -4,6 +4,7 @@ using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using System;
 using System.Numerics;
+using System.Text;
 using System.Threading;
 using Tomestone.Translate.Capture;
 using Tomestone.Translate.Debugging;
@@ -32,12 +33,40 @@ public sealed class OverlayDrawer
         this.overlayFont = overlayFont;
     }
 
+    /// <summary>Breaks down why the master gate is off, for the Developer tab.</summary>
+    private string GateOffReason()
+    {
+        var reason = string.Empty;
+        if (!configuration.PluginEnabled)
+        {
+            reason += "/tt disabled; ";
+        }
+
+        if (TargetLanguageCodes.MatchesClientLanguage(Plugin.DataManager.Language, configuration.TargetLanguage))
+        {
+            reason += $"target==client (Target={configuration.TargetLanguage}, Client={Plugin.DataManager.Language}); ";
+        }
+
+        if (configuration.DisableInsideInstance && Plugin.DutyState.IsDutyStarted)
+        {
+            reason += "inside instance; ";
+        }
+
+        return string.IsNullOrEmpty(reason)
+            ? "MASTER GATE OFF (unknown reason)"
+            : $"MASTER GATE OFF: {reason.TrimEnd(' ', ';')}";
+    }
+
     public unsafe void Draw()
     {
         Interlocked.Increment(ref diagnostics.OverlayDraws);
 
         if (!Plugin.IsTranslationActive(configuration))
         {
+            diagnostics.OverlaySurfaceCheck = GateOffReason();
+            diagnostics.AddonFound = false;
+            diagnostics.AddonVisible = false;
+            diagnostics.TextNodeFound = false;
             diagnostics.OverlayLastSkipReason = "Translation disabled (/tt off or inside instance)";
             return;
         }
@@ -50,14 +79,18 @@ public sealed class OverlayDrawer
             DialogueSurfaceKind.BattleTalk,
             DialogueSurfaceKind.TalkSubtitle,
             DialogueSurfaceKind.MiniTalk,
+            DialogueSurfaceKind.JournalAccept,
+            DialogueSurfaceKind.JournalDetail,
         };
 
+        var check = new StringBuilder();
         DialogueSurfaceKind? activeSurface = null;
         AtkUnitBase* activeAddon = null;
         foreach (var surface in surfaces)
         {
             if (!TalkCaptureService.IsSurfaceEnabled(configuration, surface))
             {
+                check.Append(surface).Append(":off, ");
                 continue;
             }
 
@@ -65,24 +98,30 @@ public sealed class OverlayDrawer
             {
                 if (talkCapture.GetVisibleMiniTalks().Count == 0)
                 {
+                    check.Append("MiniTalk:none, ");
                     continue;
                 }
 
                 activeSurface = surface;
                 activeAddon = (AtkUnitBase*)talkCapture.GetVisibleMiniTalks()[0];
+                check.Append("MiniTalk:found+visible, ");
             }
             else if (!talkCapture.TryGetAddon(surface, out var addon))
             {
+                check.Append(surface).Append(":notfound, ");
                 continue;
             }
             else
             {
                 activeSurface = surface;
                 activeAddon = addon;
+                check.Append(surface).Append(":found").Append(addon->IsVisible ? "+visible" : "+hidden").Append(", ");
             }
 
             break;
         }
+
+        diagnostics.OverlaySurfaceCheck = check.Length > 0 ? check.ToString().TrimEnd(' ', ',') : "no surfaces";
 
         if (activeSurface == null || activeAddon == null)
         {
@@ -150,7 +189,7 @@ public sealed class OverlayDrawer
             }
 
             var maxPx = textNode->Width * textNode->ScaleX;
-            var written = textNodeBuffer.SetText(textNode, translated, maxPx);
+            var written = textNodeBuffer.SetText(textNode, NormalizeLineBreaks(translated), maxPx);
             talkCapture.NoteInjectedText(activeSurface.Value, written);
             diagnostics.OverlayLastSkipReason = string.Empty;
             return;
@@ -180,7 +219,20 @@ public sealed class OverlayDrawer
 
         diagnostics.OverlayLastSkipReason = string.Empty;
 
-        DrawOverlay(textNode, translated, translatedName, configuration.OverlayVerticalOffset);
+        if (activeSurface.Value == DialogueSurfaceKind.JournalAccept)
+        {
+            var anchor = GetQuestAcceptButtonNode(activeAddon);
+            DrawOverlay(anchor == null ? (AtkResNode*)textNode : anchor, translated, translatedName, 25f, forceBelow: true, sizeAnchor: (AtkResNode*)textNode, xOffset: -40f);
+        }
+        else if (activeSurface.Value == DialogueSurfaceKind.JournalDetail)
+        {
+            var anchor = activeAddon->GetTextNodeById(33);
+            DrawOverlay(anchor == null ? (AtkResNode*)textNode : (AtkResNode*)anchor, translated, translatedName, 0f, forceRight: true, sizeAnchor: (AtkResNode*)textNode, xOffset: 50f);
+        }
+        else
+        {
+            DrawOverlay((AtkResNode*)textNode, translated, translatedName, configuration.OverlayVerticalOffset);
+        }
     }
 
     private unsafe void DrawMiniTalkOverlays(AtkUnitBase* addon)
@@ -219,21 +271,28 @@ public sealed class OverlayDrawer
             diagnostics.NodeY = textNode->ScreenY;
             diagnostics.NodeW = textNode->Width;
             diagnostics.NodeH = textNode->Height;
-            DrawOverlay(textNode, translated, bubble.TranslatedName, 0f);
+            DrawOverlay((AtkResNode*)textNode, translated, bubble.TranslatedName, 0f);
         }
 
         diagnostics.OverlaySurface = DialogueSurface.GetDisplayName(DialogueSurfaceKind.MiniTalk);
     }
 
-    private unsafe void DrawOverlay(AtkTextNode* textNode, string translated, string? translatedName, float verticalOffset)
+    private unsafe void DrawOverlay(AtkResNode* anchor, string translated, string? translatedName, float verticalOffset, bool forceBelow = false, AtkResNode* sizeAnchor = null, float xOffset = 0f, bool forceRight = false)
     {
+        translated = NormalizeLineBreaks(translated);
+        if (translatedName != null)
+        {
+            translatedName = NormalizeLineBreaks(translatedName);
+        }
+
         var hasName = !string.IsNullOrWhiteSpace(translatedName);
         var display = hasName ? translatedName + "\n" + translated : translated;
 
         var scale = Math.Max(configuration.OverlayFontScale, 0.1f);
-        var pos = new Vector2(textNode->ScreenX, textNode->ScreenY);
-        var nodeWidth = Math.Max(textNode->Width, 100f);
-        var nodeHeight = Math.Max(textNode->Height, 1f);
+        var pos = new Vector2(anchor->ScreenX + xOffset, anchor->ScreenY);
+        var sizeNode = sizeAnchor == null ? anchor : sizeAnchor;
+        var nodeWidth = Math.Max(sizeNode->Width, 100f);
+        var nodeHeight = Math.Max(anchor->Height, 1f);
 
         var wrapWidthUi = Math.Clamp(nodeWidth, 120f, configuration.OverlayMaxWidth);
         var padding = 6f * scale;
@@ -250,7 +309,15 @@ public sealed class OverlayDrawer
             var boxSize = new Vector2(wrapWidthUi + padding * 2f, textSizeFont.Y * scale + padding * 3.5f);
 
             var boxPos = pos;
-            if (configuration.OverlayAboveText)
+            if (forceRight)
+            {
+                boxPos.X += nodeWidth + padding;
+            }
+            else if (forceBelow)
+            {
+                boxPos.Y += nodeHeight + padding;
+            }
+            else if (configuration.OverlayAboveText)
             {
                 boxPos.Y -= boxSize.Y;
             }
@@ -324,6 +391,22 @@ public sealed class OverlayDrawer
             ImGui.PopStyleVar();
         }
     }
+
+    /// <summary>Returns the Accept button's node of a JournalAccept addon, or null.</summary>
+    private static unsafe AtkResNode* GetQuestAcceptButtonNode(AtkUnitBase* addon)
+    {
+        var journal = (AddonJournalAccept*)addon;
+        if (journal->AcceptButton == null)
+        {
+            return null;
+        }
+
+        var owner = journal->AcceptButton->AtkComponentBase.OwnerNode;
+        return owner == null ? null : (AtkResNode*)&owner->AtkResNode;
+    }
+
+    private static string NormalizeLineBreaks(string text)
+        => text.Replace("\r\n", "\n").Replace('\r', '\n');
 
     private static uint ColorWithAlpha(uint color, float alpha)
     {
